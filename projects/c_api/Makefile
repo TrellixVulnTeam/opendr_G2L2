@@ -19,6 +19,7 @@ CC = gcc
 AR = ar
 WGET = wget -r -q
 MV = mv
+CP = cp
 
 MKDIR_P = mkdir -p
 BUILD_DIR = build
@@ -31,9 +32,25 @@ LD =  -L/usr/lib/ -L/usr/local/lib/ -lstdc++ -lm -lonnxruntime `pkg-config --lib
 OPENDR_INC = -I$(OPENDR_HOME)/include
 OPENDR_LD = -L$(OPENDR_HOME)/lib -lopendr
 
+CMAKE = cmake
+MAKE = make
+INC_DIR = $(OPENDR_HOME)/include
+CMAKE_OPENDR_TARGET = $(OPENDR_HOME)/build
+LIBTORCH_DIR = /home/manos/nanodet/libtorchABI/libtorch
+
+MY_DATA = $(OPENDR_HOME)/src/c_api/nanodet_libtorch
+LIBTORCH_DIR = /home/manos/nanodet/libtorch
+INC_TORCH = -I$(LIBTORCH_DIR)/include/torch/csrc/api/include -I$(LIBTORCH_DIR)/include
+LD_TORCH = -L$(LIBTORCH_DIR)/lib -Lcaffe2.lib -Lc10.lib
+
 all: download demos
 
-demos: $(BUILD_DIR)/face_recognition_demo
+demos: $(BUILD_DIR)/face_recognition_demo $(BUILD_DIR)/nanodet_demo
+
+nano: $(BUILD_DIR)/nanodet_demo/gcc
+face: $(BUILD_DIR)/face_recognition_demo
+
+temp: $(BUILD_DIR)/nanodet_demo
 
 download:
 	@+if [ -a $(DATA_DIR) ] ; \
@@ -50,6 +67,23 @@ download:
 		$(RM) -r opendrdata.csd.auth.gr; \
 	fi;
 
+$(BUILD_DIR)/nanodet_demo/gcc:
+	$(MKDIR_P) $(BUILD_DIR)
+	@+echo "Building nanodet demo..."
+	$(CC)  $(CFLAGS) -o $(BUILD_DIR)/nanodet_demo samples/nanodet/nanodet_demo.c $(INC) $(OPENDR_INC) $(OPENDR_LD) $(LD) $(LD_TORCH)
+#$(CMAKE) -S ./samples/nanodet/ -B ./$(BUILD_DIR)/nanodet_demo -DCMAKE_PREFIX_PATH=$(LIBTORCH_DIR) -DOPENDR_LIB=$(LIB_DIR) -DOPENDR_INC=$(INC_DIR)
+	$(CP) $(MY_DATA)/model/nanodet_m_0.5x.pth $(BUILD_DIR)/nanodet_demo
+	$(CP) $(MY_DATA)/000000000037.jpg $(BUILD_DIR)/nanodet_demo
+	#$(CMAKE) --build $(BUILD_DIR)/nanodet_demo
+
+$(BUILD_DIR)/nanodet_demo:
+	$(MKDIR_P) $(BUILD_DIR)
+	@+echo "Building nanodet demo..."
+	$(CMAKE) -S ./samples/nanodet/ -B ./$(BUILD_DIR)/nanodet_demo -DCMAKE_PREFIX_PATH=$(LIBTORCH_DIR) -DOPENDR_LIB=$(LIB_DIR) -DOPENDR_INC=$(INC_DIR)
+	$(CP) $(MY_DATA)/model/nanodet_m_0.5x.pth $(BUILD_DIR)/nanodet_demo
+	$(CP) $(MY_DATA)/000000000037.jpg $(BUILD_DIR)/nanodet_demo
+	$(CMAKE) --build $(BUILD_DIR)/nanodet_demo
+
 $(BUILD_DIR)/face_recognition_demo:
 	$(MKDIR_P) $(BUILD_DIR)
 	@+echo "Building face recognition demo..."
@@ -57,6 +91,6 @@ $(BUILD_DIR)/face_recognition_demo:
 
 clean:
 	@+echo "Cleaning C API demo binaries and temporary files..."
-	@+$(RM) $(BUILD_DIR)/*
+	@+$(RM) -r $(BUILD_DIR)
 	@+$(RM) -rf $(DATA_DIR)
 	@+echo "Done!"
